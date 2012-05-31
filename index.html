@@ -1,0 +1,160 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+<title>Video Textures</title>
+<style type="text/css">
+body {
+width: 75%;
+margin: auto;
+margin-top: 1cm;
+}
+</style>
+</head>
+
+<body>
+<center>
+<h1> Video Textures </h1>
+</center>
+
+<h3> Overview </h3>
+
+<p>
+In this project, an algorithm for creating video textures was implemented and
+applied to several datasets.  This method produces a visual medium between a
+photograph and a video.  It's similar to video in that it consists of
+time-based visual information, but is also similar to a photograph in that it
+produces visual information which is static, in a sense.  Essentially, it
+computes video sequence that is similar to an example video, but can run
+continuously for an indefinite amount of time without exactly repeating itself.
+The site for the original publication can be found <a href="http://www.cc.gatech.edu/cpl/projects/videotexture/SIGGRAPH2000/index.htm">here</a>.
+</p>
+<p>
+Specifically, the program implemented in this project takes an example video
+and produces a video texture with a specified number of frames that is similar
+to the original but consisting of probabilistic transitions between frames of
+the original.
+</p>
+<h3> Implementation </h3>
+<p>
+This sections outlines the implementation details.  As an overview, the
+implemented program takes an example video, a number of texture frames to
+generate and a parameter for controlling smoothness of transitions.  The
+program was implemented in C using the <a
+href="http://opencv.willowgarage.com/documentation/index.html">OpenCV</a>
+library and a <a href="http://paulbourke.net/miscellaneous/random/">random
+number </a> library.  Most common video formats are supported through OpenCV's
+platform-specific backend video library. 
+</p>
+
+<p>
+The raw representation of the input video is a sequence of RGB
+images.  However, the raw video may be higher resolution than needed by the
+algorithm.  For the sake of efficiency, the video is resized to be at most 1024
+* 768 pixels and grayscale.  Furthermore, brigntness and contrast are made
+uniform by subtracting the mean and dividing by the variance across pixels
+for each frame. 
+</p>
+
+<p>
+The distance between each image pair is found by the sum of the squares of
+pixel intensity differences (SSD).  These distances are stored in a matrix.  To
+account for scene dynamics, these distances are filtered by an even-sized
+diagonal filter with binomial weights.  Dead end correction was implemented,
+but stability issues kept it from being used to generate the results. 
+</p>
+
+<p>
+Next, these distances were mapped to probabilities.  The exponential of the
+negative of the distances was used, which continuously maps the positive reals
+to the unit interval.  This ensures that large distances are represented by
+small probabilities and small distances are representedby large probabilities.
+Scaling the distances by a scalar before hand can be used to smooth out the
+distribution, giving more or less weight to high probability pairings.  The
+value of smoothing parameter sigma used was chosen as a constant times the mean
+of the non-zero distances measurements over the entire set of pairings.  To
+create a probabilitiy distribution (PDF), each row was normalized to sum to
+one.  The resulting distribution measures how probable a transition is from a
+given frame (except the last) to every other.
+</p>
+<p>
+Next, the probability distributions a mapped to cumulative distribution
+functions (CDFs), which can be conveniently and effieciently sampled.  Each CDF
+was found by sorting the transitions by their probability and taking the
+cumulative sum of the result.  The resulting CDFs can be sampled by computing a
+uniformly random value over the unit interval and finding the transition with
+the smallest cumulative sum greater than the random value.
+</p>
+
+<p>
+The video texture is then computed by choosing a random frame, excluding the
+last, and sampling the probability distribution at each successive frame.  This
+defines a sequence of frames that can be used to construct the video texture.
+The original video is used to choose the frames, as only the sequence is needed
+from the probabilistic representation of the texture.
+</p>
+
+<h3> Results </h3>
+
+<p>
+Overall, the results were positive.  Despite excluding dead-end correction,
+there were no problems with freezes in the textures.  Periodic videos seemed to
+produce good textures, but aperiodic ones produced more chaotic-looking
+results.  For each test case, 1000 frames were sampled from a random initial
+frame with sigma equal to 0.01.
+</p>
+<p>
+The first dataset tested was a clock provided by the authors of the original
+paper on their website.  The input video (left) and video texture (right) are
+shown below:
+</p>
+<table border=0>
+    <tr>
+        <td>
+            <iframe width="425" height="349" src="http://www.youtube.com/embed/XaSasL9ngGo" frameborder="0" allowfullscreen></iframe>
+        </td>
+        <td>
+            <iframe width="425" height="349" src="http://www.youtube.com/embed/FSCVBPGffX0" frameborder="0" allowfullscreen></iframe>
+        </td>
+    </tr>
+</table>
+
+<p>
+Two other test are presented here.  The first is a video of a high resolution
+butterfly, and the other is a time-lapse of mountains and clouds.  The
+butterfly is very convincing, but the mountains tended to be more erratic.
+This is likely due to the lack of periodicity and the shadows in the mountain
+scene.
+</p>
+
+<table border=0>
+    <tr>
+        <td>
+        <iframe width="425" height="265" src="http://www.youtube.com/embed/yFR8NFCLn4g" frameborder="0" allowfullscreen></iframe>
+        </td>
+        <td>
+<iframe width="425" height="265" src="http://www.youtube.com/embed/SObcPRJrOos" frameborder="0" allowfullscreen></iframe>
+        </td>
+    </tr>
+</table>
+
+<table border=0>
+    <tr>
+        <td>
+        <iframe width="425" height="349" src="http://www.youtube.com/embed/v67E3hdnLXc" frameborder="0" allowfullscreen></iframe>
+        </td>
+        <td>
+    <iframe width="425" height="349" src="http://www.youtube.com/embed/JWJnsncyrV8" frameborder="0" allowfullscreen></iframe>
+        </td>
+    </tr>
+</table>
+
+<h3>Credits</h3>
+
+This was written by Ryan Cabeen for James Hays's <a
+href="http://cs.brown.edu/courses/csci1290/">Computational Photography</a>
+class at Brown University in Spring 2011.  The code is released under the MIT
+license.  Any comments can be directed to cabeen@gmail.com
+
+</body>
+</html>
